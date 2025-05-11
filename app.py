@@ -5,637 +5,857 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 # Set page configuration
 st.set_page_config(
-    page_title="Sleep & Health Decision Dashboard",
-    page_icon="💤",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Sleep Health & Lifestyle Dashboard",
+    page_icon="😴",
+    layout="wide"
 )
-
-# Dashboard Components
-# Header Section
-def create_header_section():
-    """Create the header section of the dashboard"""
-    st.title("🛌 Sleep & Health Decision Dashboard")
-    
-    st.markdown("""
-    This dashboard helps you understand the relationship between sleep patterns, 
-    physical activity, stress, and overall health metrics. Use it to:
-    
-    * Identify key health factors affecting sleep quality
-    * Discover relationships between physical activity, stress, and sleep
-    * Compare health metrics across different demographic groups
-    * Get personalized recommendations based on data patterns
-    
-    **Use the sidebar to filter data and navigate between dashboard sections.**
-    """)
-
-# Overview Metrics Section
-def create_overview_metrics(df):
-    """Create key metrics overview section"""
-    st.header("📊 Key Metrics Overview")
-    
-    # Create three columns for key metrics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        avg_sleep = df['Sleep Duration'].mean()
-        st.metric(
-            label="Average Sleep Duration",
-            value=f"{avg_sleep:.2f} hrs",
-            delta=f"{avg_sleep - 7:.2f}" if avg_sleep - 7 != 0 else "0",
-            delta_color="normal" if avg_sleep >= 7 else "inverse"
-        )
-    
-    with col2:
-        avg_quality = df['Quality of Sleep'].mean()
-        st.metric(
-            label="Average Sleep Quality",
-            value=f"{avg_quality:.1f}/10",
-            delta=f"{avg_quality - 7:.1f}" if avg_quality - 7 != 0 else "0",
-            delta_color="normal" if avg_quality >= 7 else "inverse"
-        )
-    
-    with col3:
-        avg_stress = df['Stress Level'].mean()
-        st.metric(
-            label="Average Stress Level",
-            value=f"{avg_stress:.1f}/10",
-            delta=f"{5 - avg_stress:.1f}" if 5 - avg_stress != 0 else "0",
-            delta_color="inverse" if avg_stress > 5 else "normal"
-        )
-    
-    with col4:
-        avg_activity = df['Physical Activity Level'].mean()
-        st.metric(
-            label="Avg Physical Activity",
-            value=f"{avg_activity:.0f} min/day",
-            delta=f"{avg_activity - 60:.0f}" if avg_activity - 60 != 0 else "0",
-            delta_color="normal" if avg_activity >= 60 else "inverse"
-        )
-    
-    # Show population distribution
-    st.subheader("Population Distribution")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Gender distribution
-        gender_counts = df['Gender'].value_counts().reset_index()
-        gender_counts.columns = ['Gender', 'Count']
-        
-        fig = px.pie(
-            gender_counts, 
-            values='Count', 
-            names='Gender',
-            color_discrete_sequence=px.colors.qualitative.Pastel,
-            hole=0.4
-        )
-        fig.update_layout(
-            margin=dict(l=20, r=20, t=30, b=20),
-            height=300,
-            title_text="Gender Distribution"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        # Age distribution
-        fig = px.histogram(
-            df, 
-            x="Age",
-            color_discrete_sequence=['#3498db'],
-            nbins=10
-        )
-        fig.update_layout(
-            margin=dict(l=20, r=20, t=30, b=20),
-            height=300,
-            title_text="Age Distribution",
-            xaxis_title="Age",
-            yaxis_title="Count"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-# Sleep Analysis Section
-def create_sleep_analysis_section(df, summary=False):
-    """Create sleep analysis section"""
-    if not summary:
-        st.header("😴 Sleep Analysis")
-        st.markdown("""
-        This section helps you understand sleep patterns and identify factors affecting sleep quality.
-        """)
-    else:
-        st.subheader("😴 Sleep Analysis Summary")
-    
-    # If this is a summary view, keep it concise
-    if summary:
-        # Show one key chart for the summary
-        fig = px.scatter(
-            df, 
-            x="Sleep Duration", 
-            y="Quality of Sleep",
-            color="Sleep Disorder",
-            size="Stress Level",
-            hover_data=["Age", "Gender", "BMI Category"],
-            color_discrete_sequence=px.colors.qualitative.Safe,
-            opacity=0.7,
-            title="Sleep Duration vs Quality"
-        )
-        fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
-        return
-    
-    # For full view, show multiple analyses
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Sleep duration by disorder type
-        fig = px.box(
-            df, 
-            x="Sleep Disorder", 
-            y="Sleep Duration",
-            color="Sleep Disorder",
-            color_discrete_sequence=px.colors.qualitative.Safe,
-            points="all"
-        )
-        fig.update_layout(
-            title_text="Sleep Duration by Disorder Type",
-            xaxis_title="Sleep Disorder",
-            yaxis_title="Sleep Duration (hours)"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Average sleep metrics by occupation
-        sleep_by_occupation = df.groupby('Occupation')[['Sleep Duration', 'Quality of Sleep']].mean().reset_index()
-        sleep_by_occupation = sleep_by_occupation.sort_values('Sleep Duration')
-        
-        if len(sleep_by_occupation) > 6:
-            sleep_by_occupation = sleep_by_occupation.iloc[-6:]  # Show top 6 for readability
-            
-        fig = px.bar(
-            sleep_by_occupation,
-            x="Occupation",
-            y=["Sleep Duration", "Quality of Sleep"],
-            barmode="group",
-            title="Sleep Metrics by Occupation",
-            color_discrete_sequence=['#3498db', '#2ecc71']
-        )
-        fig.update_layout(
-            xaxis_title="Occupation",
-            yaxis_title="Value",
-            legend_title="Metric"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        # Scatter plot of sleep duration vs quality
-        fig = px.scatter(
-            df, 
-            x="Sleep Duration", 
-            y="Quality of Sleep",
-            color="Sleep Disorder",
-            symbol="Gender",
-            size="Stress Level",
-            hover_data=["Age", "BMI Category", "Occupation"],
-            title="Sleep Duration vs Quality Correlation"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Sleep quality distribution
-        fig = px.histogram(
-            df,
-            x="Quality of Sleep",
-            color="Sleep Disorder",
-            marginal="box",
-            nbins=10,
-            title="Sleep Quality Distribution"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # Sleep patterns by age and gender
-    st.subheader("Sleep Patterns by Age and Gender")
-    
-    # Create pivot tables
-    sleep_by_age_gender = df.pivot_table(
-        index="Gender",
-        columns=pd.cut(df["Age"], bins=[25, 35, 45, 55, 65]),
-        values="Sleep Duration",
-        aggfunc="mean"
-    ).round(2)
-    
-    quality_by_age_gender = df.pivot_table(
-        index="Gender",
-        columns=pd.cut(df["Age"], bins=[25, 35, 45, 55, 65]),
-        values="Quality of Sleep",
-        aggfunc="mean"
-    ).round(2)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**Average Sleep Duration by Age Group and Gender**")
-        st.dataframe(sleep_by_age_gender, use_container_width=True)
-    
-    with col2:
-        st.markdown("**Average Sleep Quality by Age Group and Gender**")
-        st.dataframe(quality_by_age_gender, use_container_width=True)
-
-# Physical Activity Section (simplified version)
-def create_physical_activity_section(df, summary=False):
-    """Create physical activity analysis section"""
-    if not summary:
-        st.header("🏃‍♂️ Physical Activity Analysis")
-        st.markdown("""
-        This section examines the relationship between physical activity and other health metrics.
-        """)
-    else:
-        st.subheader("🏃‍♂️ Physical Activity Summary")
-    
-    # If this is summary view, keep it concise
-    if summary:
-        # Show relationship between physical activity and sleep quality
-        fig = px.scatter(
-            df,
-            x="Physical Activity Level",
-            y="Quality of Sleep",
-            color="BMI Category",
-            size="Daily Steps",
-            size_max=15,
-            opacity=0.7,
-            title="Physical Activity vs Sleep Quality",
-            color_discrete_sequence=px.colors.qualitative.G10
-        )
-        fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
-        return
-    
-    # Full analysis with multiple charts
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Physical activity by gender and BMI
-        fig = px.box(
-            df,
-            x="BMI Category",
-            y="Physical Activity Level",
-            color="Gender",
-            notched=True,
-            title="Physical Activity by BMI Category and Gender"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        # Relationship between physical activity and sleep quality
-        fig = px.scatter(
-            df,
-            x="Physical Activity Level",
-            y="Quality of Sleep",
-            color="BMI Category",
-            size="Daily Steps",
-            trendline="ols",
-            title="Physical Activity vs Sleep Quality"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-# Health Metrics Section (simplified version)
-def create_health_metrics_section(df, summary=False):
-    """Create health metrics analysis section"""
-    if not summary:
-        st.header("💓 Health Metrics Analysis")
-        st.markdown("""
-        This section analyzes key health indicators and their relationships.
-        """)
-    else:
-        st.subheader("💓 Health Metrics Summary")
-    
-    # If this is summary view, keep it concise
-    if summary:
-        # Show heart rate and blood pressure distributions
-        fig = make_subplots(rows=1, cols=2, subplot_titles=["Heart Rate Distribution", "BMI Distribution"])
-        
-        # Heart rate histogram
-        fig.add_trace(
-            go.Histogram(
-                x=df["Heart Rate"],
-                name="Heart Rate",
-                marker_color="#3498db"
-            ),
-            row=1, col=1
-        )
-        
-        # BMI Category count
-        bmi_counts = df["BMI Category"].value_counts().reset_index()
-        bmi_counts.columns = ["BMI Category", "Count"]
-        
-        fig.add_trace(
-            go.Bar(
-                x=bmi_counts["BMI Category"],
-                y=bmi_counts["Count"],
-                marker_color="#2ecc71"
-            ),
-            row=1, col=2
-        )
-        
-        fig.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
-        return
-    
-    # Full analysis with multiple charts
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # BMI distribution by gender
-        fig = px.histogram(
-            df,
-            x="BMI Category",
-            color="Gender",
-            barmode="group",
-            title="BMI Distribution by Gender"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        # Heart rate by sleep disorder
-        fig = px.box(
-            df,
-            x="Sleep Disorder",
-            y="Heart Rate",
-            color="Sleep Disorder",
-            notched=True,
-            points="all",
-            title="Heart Rate by Sleep Disorder"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-# Stress Analysis Section (simplified version)
-def create_stress_analysis_section(df, summary=False):
-    """Create stress analysis section"""
-    if not summary:
-        st.header("😓 Stress Analysis")
-        st.markdown("""
-        This section explores stress levels and their impact on sleep and health.
-        """)
-    else:
-        st.subheader("😓 Stress Analysis Summary")
-    
-    # If this is summary view, keep it concise
-    if summary:
-        # Show stress level impact on sleep quality
-        fig = px.scatter(
-            df, 
-            x="Stress Level", 
-            y="Quality of Sleep",
-            color="Sleep Disorder",
-            size="Physical Activity Level",
-            opacity=0.7,
-            trendline="ols",
-            title="Stress Level vs Sleep Quality"
-        )
-        fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
-        return
-    
-    # Full analysis with multiple charts
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Stress levels by occupation
-        stress_by_occupation = df.groupby('Occupation')['Stress Level'].mean().sort_values(ascending=False).reset_index()
-        
-        if len(stress_by_occupation) > 6:
-            stress_by_occupation = stress_by_occupation.head(6)  # Show top 6 for readability
-            
-        fig = px.bar(
-            stress_by_occupation,
-            x="Occupation",
-            y="Stress Level",
-            color="Stress Level",
-            title="Average Stress Level by Occupation",
-            color_continuous_scale=px.colors.sequential.Reds
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        # Stress level impact on sleep quality
-        fig = px.scatter(
-            df, 
-            x="Stress Level", 
-            y="Quality of Sleep",
-            color="Sleep Disorder",
-            size="Sleep Duration",
-            hover_data=["Age", "Gender", "Occupation"],
-            trendline="ols",
-            title="Stress Level vs Sleep Quality"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-# Recommendations Section (simplified version)
-def create_recommendations_section(df):
-    """Create personalized recommendations section"""
-    st.header("🎯 Recommendations & Insights")
-    st.markdown("""
-    Based on the data analysis, here are key insights and recommendations to improve sleep and health.
-    """)
-    
-    # Calculate insights
-    avg_sleep = df['Sleep Duration'].mean()
-    avg_quality = df['Quality of Sleep'].mean()
-    avg_activity = df['Physical Activity Level'].mean()
-    avg_stress = df['Stress Level'].mean()
-    
-    # Sleep disorder prevalence
-    sleep_disorder_counts = df['Sleep Disorder'].value_counts(normalize=True) * 100
-    has_disorder = 100 - sleep_disorder_counts.get('None', 0)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Key Insights")
-        
-        st.markdown(f"""
-        * **Sleep Duration**: Average sleep duration is **{avg_sleep:.2f} hours** per night
-        * **Sleep Quality**: Average sleep quality rating is **{avg_quality:.1f}/10**
-        * **Sleep Disorders**: **{has_disorder:.1f}%** of individuals have some form of sleep disorder
-        * **Physical Activity**: Average physical activity is **{avg_activity:.1f} minutes** per day
-        * **Stress Level**: Average stress level rating is **{avg_stress:.1f}/10**
-        """)
-        
-        # Create summary for BMI categories
-        st.markdown("### BMI Category Analysis")
-        
-        bmi_summary = df.groupby('BMI Category').agg({
-            'Sleep Duration': 'mean',
-            'Quality of Sleep': 'mean',
-            'Stress Level': 'mean',
-            'Physical Activity Level': 'mean'
-        }).round(2)
-        
-        st.dataframe(bmi_summary, use_container_width=True)
-    
-    with col2:
-        st.subheader("Recommendations")
-        
-        if avg_sleep < 7:
-            st.markdown("""
-            * 😴 **Increase Sleep Duration**: The average sleep duration is below the recommended 7-8 hours. 
-              Consider establishing a regular sleep schedule and bedtime routine.
-            """)
-        
-        if avg_activity < 60:
-            st.markdown("""
-            * 🏃‍♀️ **Boost Physical Activity**: Data shows a positive correlation between physical activity and sleep quality. 
-              Aim for at least 30-60 minutes of moderate activity daily.
-            """)
-        
-        if avg_stress > 5:
-            st.markdown("""
-            * 🧘‍♂️ **Manage Stress Levels**: Higher stress is associated with poorer sleep quality. 
-              Consider stress-reduction techniques like meditation, deep breathing, or mindfulness.
-            """)
-        
-        # BMI-specific recommendations
-        if 'Overweight' in df['BMI Category'].unique() or 'Obese' in df['BMI Category'].unique():
-            st.markdown("""
-            * ⚖️ **Weight Management**: Individuals in higher BMI categories show higher prevalence of sleep disorders. 
-              A balanced diet and regular exercise may help improve sleep quality.
-            """)
-        
-        # General health recommendations
-        st.markdown("""
-        * 📱 **Digital Detox**: Limit screen time before bed to improve sleep quality.
-          The blue light from screens can interfere with melatonin production.
-        
-        * 🥤 **Limit Stimulants**: Reduce caffeine and alcohol consumption, especially in the afternoon and evening.
-        """)
 
 # Load data
 @st.cache_data
 def load_data():
-    try:
-        df = pd.read_csv('sleep_health_data.csv')
-        # Convert blood pressure to numeric for analysis
-        df['Systolic_BP'] = df['Blood Pressure'].apply(lambda x: int(x.split('/')[0]))
-        df['Diastolic_BP'] = df['Blood Pressure'].apply(lambda x: int(x.split('/')[1]))
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        # Return a sample dataframe if file not found
-        return pd.DataFrame({
-            'Person ID': list(range(1, 11)),
-            'Gender': ['Male', 'Female'] * 5,
-            'Age': [30, 35, 40, 45, 50, 28, 33, 38, 43, 48],
-            'Occupation': ['Engineer', 'Doctor', 'Teacher', 'Nurse', 'Manager'] * 2,
-            'Sleep Duration': [7, 6.5, 8, 7.2, 6, 7.5, 6.8, 7.8, 6.2, 6.5],
-            'Quality of Sleep': [8, 7, 9, 6, 5, 8, 7, 8, 6, 5],
-            'Physical Activity Level': [60, 45, 30, 75, 40, 65, 50, 70, 35, 55],
-            'Stress Level': [4, 7, 3, 6, 8, 3, 6, 5, 8, 7],
-            'BMI Category': ['Normal', 'Normal', 'Overweight', 'Normal', 'Overweight', 'Normal', 'Normal', 'Normal', 'Overweight', 'Obese'],
-            'Blood Pressure': ['120/80', '125/85', '130/90', '120/75', '140/95', '115/75', '125/80', '120/80', '135/90', '145/95'],
-            'Heart Rate': [70, 75, 80, 68, 88, 65, 72, 70, 84, 90],
-            'Daily Steps': [8000, 7000, 6000, 10000, 5000, 9000, 7500, 11000, 5500, 4000],
-            'Sleep Disorder': ['None', 'None', 'Sleep Apnea', 'None', 'Insomnia', 'None', 'None', 'None', 'Insomnia', 'Sleep Apnea'],
-            'Systolic_BP': [120, 125, 130, 120, 140, 115, 125, 120, 135, 145],
-            'Diastolic_BP': [80, 85, 90, 75, 95, 75, 80, 80, 90, 95]
-        })
+    # Assuming data is read from a CSV file
 
-# Main function
-def main():
-    try:
-        # Create sidebar
-        st.sidebar.title("Dashboard Navigation")
+    df = pd.read_csv("sleep_health_data.csv")
+    
+    # Split blood pressure into separate columns for analysis
+    df[['Systolic', 'Diastolic']] = df['Blood Pressure'].str.split('/', expand=True).astype(int)
+    
+    return df
+
+# Load the data
+df = load_data()
+
+# Define color palette for consistent visual language
+primary_color = "#1E88E5"  # Blue
+secondary_color = "#FFC107"  # Amber
+tertiary_color = "#4CAF50"  # Green
+warning_color = "#F44336"  # Red
+
+# Disorder color mapping for consistent visual encoding
+disorder_colors = {
+    'None': tertiary_color,
+    'Insomnia': warning_color,
+    'Sleep Apnea': secondary_color
+}
+
+# Custom CSS for better data-ink ratio and visual hierarchy
+st.markdown("""
+<style>
+    /* Improve visual hierarchy with typography */
+    h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+    h2 {
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin-top: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 0.5rem;
+    }
+    h3 {
+        font-size: 1.3rem;
+        font-weight: 500;
+    }
+    /* Remove unnecessary decoration for better data-ink ratio */
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 0rem;
+    }
+    /* Improve separation between sections */
+    .section-divider {
+        margin: 1.5rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Dashboard Title - Clear visual hierarchy starts here
+st.title("😴 Sleep Health & Lifestyle Analysis")
+
+# Top-level navigation tabs for progressive disclosure
+tab1, tab2, tab3 = st.tabs([
+    "🔍 Key Insights", 
+    "🔄 Comparative Analysis", 
+    "🧪 Advanced Analytics"
+])
+
+# -- TAB 1: KEY INSIGHTS --
+with tab1:
+    # Brief introduction (minimizing cognitive load with clear explanation)
+    st.markdown("""
+    This dashboard helps you understand the relationships between sleep patterns, lifestyle factors, 
+    and health conditions. The analysis focuses on identifying key factors affecting sleep quality 
+    and potential interventions to improve sleep health.
+    """)
+    
+    # First row - Key metrics and distribution for situational awareness
+    st.subheader("Population Overview")
+    
+    # Create 4 columns for key metrics to fit within working memory limits
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # Metric 1 - Average Sleep Duration
+    avg_sleep = df['Sleep Duration'].mean()
+    with col1:
+        st.metric(
+            "Avg. Sleep Duration", 
+            f"{avg_sleep:.1f} hrs",
+            delta=f"{avg_sleep - 7:.1f}" if avg_sleep - 7 != 0 else None,
+            delta_color="normal" if avg_sleep >= 7 else "off"
+        )
+    
+    # Metric 2 - Average Sleep Quality
+    avg_quality = df['Quality of Sleep'].mean()
+    with col2:
+        st.metric(
+            "Avg. Sleep Quality", 
+            f"{avg_quality:.1f}/10",
+            delta=f"{avg_quality - 5:.1f}" if avg_quality - 5 != 0 else None,
+            delta_color="normal" if avg_quality >= 5 else "off"
+        )
+    
+    # Metric 3 - Sleep Disorder Prevalence  
+    disorder_prevalence = (df['Sleep Disorder'] != 'None').mean() * 100
+    with col3:
+        st.metric(
+            "Sleep Disorder Prevalence", 
+            f"{disorder_prevalence:.1f}%",
+            delta=f"{-disorder_prevalence:.1f}%" if disorder_prevalence > 0 else None,
+            delta_color="off" if disorder_prevalence > 0 else "normal"
+        )
+    
+    # Metric 4 - Average Physical Activity 
+    avg_activity = df['Physical Activity Level'].mean()
+    with col4:
+        st.metric(
+            "Avg. Physical Activity", 
+            f"{avg_activity:.0f} min/day",
+            delta=f"{avg_activity - 60:.0f}" if avg_activity - 60 != 0 else None,
+            delta_color="normal" if avg_activity >= 60 else "off"
+        )
+    
+    # Second row - Exception identification (sleep disorders distribution) and age distribution
+    st.subheader("Population Distribution")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Distribution of sleep disorders - for identifying exceptions
+        disorder_count = df['Sleep Disorder'].value_counts().reset_index()
+        disorder_count.columns = ['Sleep Disorder', 'Count']
         
-        # Add filter options to sidebar
-        st.sidebar.subheader("Filter Data")
+        fig = px.pie(
+            disorder_count, 
+            values='Count', 
+            names='Sleep Disorder',
+            color='Sleep Disorder',
+            color_discrete_map=disorder_colors,
+            hole=0.4,
+            title="Sleep Disorder Distribution"
+        )
+        fig.update_traces(textposition='inside', textinfo='percent+label')
+        fig.update_layout(
+            height=300,
+            margin=dict(l=10, r=10, t=40, b=10),
+            legend=dict(orientation='h', yanchor='bottom', y=-0.2)
+        )
+        st.plotly_chart(fig, use_container_width=True)
         
-        # Load data
-        df = load_data()
+    with col2:
+        # Age distribution - for understanding the population
+        age_bins = [18, 30, 40, 50, 60, 70, 80]
+        age_labels = ['18-29', '30-39', '40-49', '50-59', '60-69', '70+']
+        df['Age Group'] = pd.cut(df['Age'], bins=age_bins, labels=age_labels, right=False)
         
-        # Create filters in sidebar
-        gender_filter = st.sidebar.multiselect(
-            "Select Gender",
+        age_dist = df.groupby(['Age Group', 'Gender']).size().reset_index(name='Count')
+        
+        fig = px.bar(
+            age_dist, 
+            x='Age Group', 
+            y='Count', 
+            color='Gender',
+            barmode='group',
+            title="Age and Gender Distribution",
+            color_discrete_sequence=[primary_color, secondary_color]
+        )
+        fig.update_layout(
+            height=300,
+            margin=dict(l=10, r=10, t=40, b=10),
+            legend=dict(orientation='h', yanchor='bottom', y=-0.2)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Third row - Key relationship: Sleep Duration vs Quality
+    st.subheader("Key Relationship: Sleep Duration vs Quality")
+    
+    # Create columns for the chart and key insights to emphasize comparative analysis
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        # Scatter plot with sleep duration vs quality with disorders highlighted
+        fig = px.scatter(
+            df, 
+            x='Sleep Duration', 
+            y='Quality of Sleep',
+            color='Sleep Disorder',
+            color_discrete_map=disorder_colors,
+            size='Stress Level',
+            hover_data=['Age', 'Gender', 'Occupation', 'Stress Level'],
+            opacity=0.7,
+            title="Sleep Duration vs. Quality by Sleep Disorder",
+        )
+        
+        # Add reference lines for recommended sleep (7-9 hours) and good quality (>7)
+        fig.add_shape(
+            type="rect",
+            x0=7, x1=9, y0=7, y1=10,
+            line=dict(color="rgba(0,100,0,0.2)", width=2),
+            fillcolor="rgba(0,100,0,0.1)",
+            layer="below"
+        )
+        
+        # Add annotation for the optimal zone
+        fig.add_annotation(
+            x=8, y=8.5,
+            text="Optimal Sleep Zone",
+            showarrow=False,
+            font=dict(size=12, color="green")
+        )
+        
+        fig.update_layout(
+            height=400,
+            margin=dict(l=10, r=10, t=40, b=10),
+            legend=dict(orientation='h', yanchor='bottom', y=-0.15)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Key insights callout box for causal investigation
+        st.markdown("""
+        ### Key Insights
+        
+        * **Clear Separation:** Sleep disorder cases cluster in the lower-left (short duration, poor quality)
+        
+        * **Threshold Effect:** Most healthy sleepers get >7 hours and rate quality >7/10
+        
+        * **Stress Impact:** Larger bubbles (higher stress) tend to correlate with poorer sleep
+        """)
+        
+        # Simple action metrics for action determination
+        st.markdown("### Recommended Targets")
+        st.metric("Target Sleep Duration", "7-9 hours")
+        st.metric("Target Sleep Quality", ">7/10")
+    
+    # Fourth row - Interactive exploration
+    st.subheader("Explore Factors Affecting Sleep Quality")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Select which factor to explore
+        factor = st.selectbox(
+            "Select factor to explore:",
+            ["Physical Activity Level", 
+             "Stress Level", 
+             "BMI Category",
+             "Heart Rate (bpm)",
+             "Daily Steps"]
+        )
+        
+        # Adapt chart type to data type for chart appropriateness
+        if factor == "BMI Category":
+            # For categorical data, use boxplot
+            fig = px.box(
+                df, 
+                x=factor, 
+                y="Quality of Sleep",
+                color="Sleep Disorder",
+                color_discrete_map=disorder_colors,
+                title=f"Sleep Quality by {factor}",
+                category_orders={"BMI Category": ["Underweight", "Normal", "Overweight", "Obese"]}
+            )
+        else:
+            # For continuous data, use scatter plot
+            fig = px.scatter(
+                df, 
+                x=factor, 
+                y="Quality of Sleep",
+                color="Sleep Disorder",
+                color_discrete_map=disorder_colors,
+                opacity=0.7,
+                trendline="ols",
+                title=f"Sleep Quality vs {factor}"
+            )
+        
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=40, b=10),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Similar chart for sleep duration to allow comparison
+        if factor == "BMI Category":
+            fig = px.box(
+                df, 
+                x=factor, 
+                y="Sleep Duration",
+                color="Sleep Disorder",
+                color_discrete_map=disorder_colors,
+                title=f"Sleep Duration by {factor}",
+                category_orders={"BMI Category": ["Underweight", "Normal", "Overweight", "Obese"]}
+            )
+        else:
+            fig = px.scatter(
+                df, 
+                x=factor, 
+                y="Sleep Duration",
+                color="Sleep Disorder",
+                color_discrete_map=disorder_colors,
+                opacity=0.7,
+                trendline="ols",
+                title=f"Sleep Duration vs {factor}"
+            )
+        
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=40, b=10),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+# -- TAB 2: COMPARATIVE ANALYSIS --
+with tab2:
+    st.subheader("Comparative Analysis")
+    
+    # Filters for comparative analysis - at the top for context
+    st.markdown("### Filter Data for Comparison")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Gender filter
+        gender_filter = st.multiselect(
+            "Gender:",
             options=df['Gender'].unique(),
             default=df['Gender'].unique()
         )
-        
-        age_range = st.sidebar.slider(
-            "Age Range",
-            min_value=int(df['Age'].min()),
-            max_value=int(df['Age'].max()),
-            value=[int(df['Age'].min()), int(df['Age'].max())]
-        )
-        
-        occupation_filter = st.sidebar.multiselect(
-            "Select Occupation",
-            options=df['Occupation'].unique(),
-            default=df['Occupation'].unique()[:3]  # Default to showing top 3
-        )
-        
-        sleep_disorder_filter = st.sidebar.multiselect(
-            "Sleep Disorder",
-            options=df['Sleep Disorder'].unique(),
-            default=df['Sleep Disorder'].unique()
-        )
-        
-        # Filter data based on selections
-        filtered_df = df[
-            (df['Gender'].isin(gender_filter)) &
-            (df['Age'] >= age_range[0]) & (df['Age'] <= age_range[1]) &
-            (df['Occupation'].isin(occupation_filter)) &
-            (df['Sleep Disorder'].isin(sleep_disorder_filter))
-        ]
-        
-        # Show filter information
-        st.sidebar.markdown(f"**Showing data for {len(filtered_df)} individuals**")
-        
-        # Include navigation in sidebar
-        pages = ["Dashboard Overview", "Sleep Analysis", "Physical Activity", 
-                "Health Metrics", "Stress Analysis", "Recommendations"]
-        
-        selected_page = st.sidebar.radio("Navigate to", pages)
-        
-        # Create header section
-        create_header_section()
-        
-        # Display specific sections based on navigation selection
-        if selected_page == "Dashboard Overview":
-            create_overview_metrics(filtered_df)
-            # Show summary of all sections
-            col1, col2 = st.columns(2)
-            with col1:
-                create_sleep_analysis_section(filtered_df, summary=True)
-                create_health_metrics_section(filtered_df, summary=True)
-            with col2:
-                create_physical_activity_section(filtered_df, summary=True)
-                create_stress_analysis_section(filtered_df, summary=True)
-        
-        elif selected_page == "Sleep Analysis":
-            create_sleep_analysis_section(filtered_df)
-        
-        elif selected_page == "Physical Activity":
-            create_physical_activity_section(filtered_df)
-        
-        elif selected_page == "Health Metrics":
-            create_health_metrics_section(filtered_df)
-        
-        elif selected_page == "Stress Analysis":
-            create_stress_analysis_section(filtered_df)
-        
-        elif selected_page == "Recommendations":
-            create_recommendations_section(filtered_df)
-
-        # Add information about data source and dashboard purpose at the bottom
-        st.markdown("---")
-        st.markdown("""
-            <div style='text-align: center; color: gray; font-size: 0.8em;'>
-            Data based on sleep and health metrics. Dashboard designed to support decision-making by minimizing cognitive load and highlighting key relationships.
-            </div>
-        """, unsafe_allow_html=True)
     
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
-        st.info("Try reloading the page or check if all required files are in place.")
+    with col2:
+        # Age group filter
+        age_group_filter = st.multiselect(
+            "Age Group:",
+            options=df['Age Group'].unique(),
+            default=df['Age Group'].unique()
+        )
+    
+    with col3:
+        # Occupation filter with select all option
+        all_occupations = df['Occupation'].unique()
+        occupation_filter = st.multiselect(
+            "Occupation:",
+            options=['All'] + list(all_occupations),
+            default=['All']
+        )
+        
+        if 'All' in occupation_filter:
+            occupation_filter = list(all_occupations)
+    
+    # Apply filters
+    filtered_df = df[
+        (df['Gender'].isin(gender_filter)) &
+        (df['Age Group'].isin(age_group_filter)) &
+        (df['Occupation'].isin(occupation_filter))
+    ]
+    
+    # Show sample size for context
+    st.info(f"Selected sample: {len(filtered_df)} out of {len(df)} individuals")
+    
+    # Comparative Analysis Section - Sleep Metrics by Disorder
+    st.markdown("### Sleep Metrics by Disorder Type")
+    
+    # Calculate mean values for each disorder type
+    disorder_metrics = filtered_df.groupby('Sleep Disorder').agg({
+        'Sleep Duration': 'mean',
+        'Quality of Sleep': 'mean',
+        'Physical Activity Level': 'mean',
+        'Stress Level': 'mean',
+        'Heart Rate': 'mean',
+        'Daily Steps': 'mean'
+    }).reset_index()
+    
+    # Create a selection for which metrics to compare
+    metrics_options = [
+        'Sleep Duration', 
+        'Quality of Sleep', 
+        'Physical Activity Level',
+        'Stress Level',
+        'Heart Rate',
+        'Daily Steps'
+    ]
+    
+    selected_metrics = st.multiselect(
+        "Select metrics to compare:",
+        options=metrics_options,
+        default=metrics_options[:3]  # Default to first 3 for reduced cognitive load
+    )
+    
+    if selected_metrics:
+        # Create a long-format dataframe for the selected metrics
+        plot_data = pd.melt(
+            disorder_metrics, 
+            id_vars=['Sleep Disorder'],
+            value_vars=selected_metrics,
+            var_name='Metric',
+            value_name='Value'
+        )
+        
+        # Create a bar chart with facets for each metric
+        fig = px.bar(
+            plot_data,
+            x='Sleep Disorder',
+            y='Value',
+            color='Sleep Disorder',
+            color_discrete_map=disorder_colors,
+            facet_col='Metric',
+            title="Comparison of Metrics by Sleep Disorder",
+            barmode='group',
+            facet_col_wrap=min(len(selected_metrics), 3),  # At most 3 metrics per row
+            height=300 * (len(selected_metrics) // 3 + (1 if len(selected_metrics) % 3 > 0 else 0))
+        )
+        
+        # Improve layout
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=50, b=10),
+            showlegend=True
+        )
+        
+        # Update facet titles
+        for i, metric in enumerate(selected_metrics):
+            fig.layout.annotations[i].text = metric.split('(')[0].strip()
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Occupation Analysis - categorical comparison
+    st.markdown("### Sleep Quality by Occupation")
+    
+    # Group data by occupation
+    occupation_data = filtered_df.groupby('Occupation').agg({
+        'Sleep Duration': 'mean',
+        'Quality of Sleep': 'mean',
+        'Sleep Disorder': lambda x: (x != 'None').mean() * 100
+    }).reset_index()
+    
+    occupation_data.columns = ['Occupation', 'Avg. Sleep Duration', 'Avg. Sleep Quality', 'Disorder Prevalence (%)']
+    
+    # Sort by sleep quality for better comparison
+    occupation_data = occupation_data.sort_values('Avg. Sleep Quality', ascending=False)
+    
+    # Create a horizontal bar chart for occupations
+    fig = px.bar(
+        occupation_data,
+        y='Occupation',
+        x='Avg. Sleep Quality',
+        orientation='h',
+        title="Average Sleep Quality by Occupation",
+        color='Avg. Sleep Quality',
+        color_continuous_scale='blues',
+        height=400
+    )
+    
+    # Add a reference line for the overall average
+    overall_avg = filtered_df['Quality of Sleep'].mean()
+    fig.add_vline(
+        x=overall_avg, 
+        line_width=2, 
+        line_dash="dash", 
+        line_color="gray",
+        annotation_text=f"Overall Avg: {overall_avg:.1f}",
+        annotation_position="top"
+    )
+    
+    fig.update_layout(
+        margin=dict(l=10, r=10, t=50, b=10),
+    )
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Show the full data table
+        st.markdown("### Occupation Data")
+        st.dataframe(occupation_data, hide_index=True)
+    
+    # Age Group Analysis
+    st.markdown("### Age-Related Sleep Patterns")
+    
+    # Group data by age group
+    age_data = filtered_df.groupby(['Age Group', 'Gender']).agg({
+        'Sleep Duration': 'mean',
+        'Quality of Sleep': 'mean',
+        'Sleep Disorder': lambda x: (x != 'None').mean() * 100
+    }).reset_index()
+    
+    age_data.columns = ['Age Group', 'Gender', 'Avg. Sleep Duration', 'Avg. Sleep Quality', 'Disorder Prevalence (%)']
+    
+    # Create tabs for different metrics
+    age_tab1, age_tab2, age_tab3 = st.tabs(["Sleep Duration", "Sleep Quality", "Disorder Prevalence"])
+    
+    with age_tab1:
+        fig = px.line(
+            age_data, 
+            x='Age Group', 
+            y='Avg. Sleep Duration',
+            color='Gender',
+            markers=True,
+            title="Average Sleep Duration by Age Group and Gender",
+            color_discrete_sequence=[primary_color, secondary_color]
+        )
+        
+        # Add reference range for recommended sleep
+        fig.add_hrect(
+            y0=7, y1=9,
+            line_width=0,
+            fillcolor="rgba(0,100,0,0.1)",
+            annotation_text="Recommended Range",
+            annotation_position="top right"
+        )
+        
+        fig.update_layout(
+            height=300,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with age_tab2:
+        fig = px.line(
+            age_data, 
+            x='Age Group', 
+            y='Avg. Sleep Quality',
+            color='Gender',
+            markers=True,
+            title="Average Sleep Quality by Age Group and Gender",
+            color_discrete_sequence=[primary_color, secondary_color]
+        )
+        
+        # Add reference line for good sleep quality
+        fig.add_hline(
+            y=7,
+            line_width=2,
+            line_dash="dash",
+            line_color="green",
+            annotation_text="Good Quality Threshold",
+            annotation_position="top right"
+        )
+        
+        fig.update_layout(
+            height=300,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with age_tab3:
+        fig = px.line(
+            age_data, 
+            x='Age Group', 
+            y='Disorder Prevalence (%)',
+            color='Gender',
+            markers=True,
+            title="Sleep Disorder Prevalence by Age Group and Gender",
+            color_discrete_sequence=[primary_color, secondary_color]
+        )
+        
+        fig.update_layout(
+            height=300,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-if __name__ == "__main__":
-    main()
+# -- TAB 3: ADVANCED ANALYTICS --
+with tab3:
+    st.subheader("Advanced Analytics")
+    
+    # Correlation Analysis
+    st.markdown("### Correlation Heatmap")
+    
+    # Select numerical columns for correlation
+    numeric_cols = [
+        'Age', 
+        'Sleep Duration', 
+        'Quality of Sleep',
+        'Physical Activity Level', 
+        'Stress Level',
+        'Heart Rate', 
+        'Daily Steps',
+        'Systolic',
+        'Diastolic'
+    ]
+    
+    # Calculate correlation matrix
+    corr = df[numeric_cols].corr()
+    
+    # Create heatmap
+    fig = px.imshow(
+        corr,
+        text_auto='.2f',
+        color_continuous_scale='RdBu_r',
+        title="Correlation Between Metrics",
+        aspect="auto"
+    )
+    
+    fig.update_layout(
+        height=600,
+        margin=dict(l=10, r=10, t=50, b=10)
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Risk Factor Analysis
+    st.markdown("### Sleep Disorder Risk Factors")
+    
+    # Create three groups for risk analysis
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Physical Activity Analysis
+        activity_bins = [0, 30, 60, 90, 120]
+        activity_labels = ['Low (0-30)', 'Moderate (30-60)', 'High (60-90)', 'Very High (90+)']
+        
+        df['Activity Level'] = pd.cut(
+            df['Physical Activity Level'], 
+            bins=activity_bins, 
+            labels=activity_labels
+        )
+        
+        activity_risk = df.groupby('Activity Level')['Sleep Disorder'].apply(
+            lambda x: (x != 'None').mean() * 100
+        ).reset_index()
+        activity_risk.columns = ['Activity Level', 'Disorder Risk (%)']
+        
+        fig = px.bar(
+            activity_risk,
+            x='Activity Level',
+            y='Disorder Risk (%)',
+            title="Sleep Disorder Risk by Physical Activity Level",
+            color='Disorder Risk (%)',
+            color_continuous_scale='reds_r',
+            text_auto='.1f'
+        )
+        
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Stress Level Analysis
+        stress_bins = [0, 3, 6, 10]
+        stress_labels = ['Low (0-3)', 'Moderate (4-6)', 'High (7-10)']
+        
+        df['Stress Category'] = pd.cut(
+            df['Stress Level'], 
+            bins=stress_bins, 
+            labels=stress_labels
+        )
+        
+        stress_risk = df.groupby('Stress Category')['Sleep Disorder'].apply(
+            lambda x: (x != 'None').mean() * 100
+        ).reset_index()
+        stress_risk.columns = ['Stress Category', 'Disorder Risk (%)']
+        
+        fig = px.bar(
+            stress_risk,
+            x='Stress Category',
+            y='Disorder Risk (%)',
+            title="Sleep Disorder Risk by Stress Level",
+            color='Disorder Risk (%)',
+            color_continuous_scale='reds',
+            text_auto='.1f'
+        )
+        
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # BMI and Sleep Patterns
+    st.markdown("### BMI Category Analysis")
+    
+    # Create columns for BMI analysis
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # BMI and Sleep Quality
+        bmi_quality = df.groupby('BMI Category')['Quality of Sleep'].mean().reset_index()
+        bmi_quality.columns = ['BMI Category', 'Avg. Sleep Quality']
+        
+        # Sort categories in logical order
+        bmi_order = ['Underweight', 'Normal', 'Overweight', 'Obese']
+        bmi_quality['BMI Category'] = pd.Categorical(
+            bmi_quality['BMI Category'], 
+            categories=bmi_order, 
+            ordered=True
+        )
+        bmi_quality = bmi_quality.sort_values('BMI Category')
+        
+        fig = px.bar(
+            bmi_quality,
+            x='BMI Category',
+            y='Avg. Sleep Quality',
+            title="Average Sleep Quality by BMI Category",
+            color='BMI Category',
+            color_discrete_sequence=['#FFC107', '#4CAF50', '#FF9800', '#F44336'],
+            text_auto='.1f'
+        )
+        
+        # Add a reference line for good sleep quality
+        fig.add_hline(
+            y=7,
+            line_width=2,
+            line_dash="dash",
+            line_color="green",
+            annotation_text="Good Quality Threshold",
+            annotation_position="top right"
+        )
+        
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # BMI and Sleep Disorder Prevalence
+        bmi_disorder = df.groupby('BMI Category')['Sleep Disorder'].apply(
+            lambda x: (x != 'None').mean() * 100
+        ).reset_index()
+        bmi_disorder.columns = ['BMI Category', 'Disorder Prevalence (%)']
+        
+        # Sort categories in logical order
+        bmi_disorder['BMI Category'] = pd.Categorical(
+            bmi_disorder['BMI Category'], 
+            categories=bmi_order, 
+            ordered=True
+        )
+        bmi_disorder = bmi_disorder.sort_values('BMI Category')
+        
+        fig = px.bar(
+            bmi_disorder,
+            x='BMI Category',
+            y='Disorder Prevalence (%)',
+            title="Sleep Disorder Prevalence by BMI Category",
+            color='BMI Category',
+            color_discrete_sequence=['#FFC107', '#4CAF50', '#FF9800', '#F44336'],
+            text_auto='.1f'
+        )
+        
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Blood Pressure Analysis
+    st.markdown("### Blood Pressure and Sleep Health")
+    
+    # Create BP categories
+    df['BP Category'] = 'Normal'
+    df.loc[(df['Systolic'] >= 120) & (df['Systolic'] < 130) & (df['Diastolic'] < 80), 'BP Category'] = 'Elevated'
+    df.loc[(df['Systolic'] >= 130) | (df['Diastolic'] >= 80), 'BP Category'] = 'Hypertensive'
+    
+    # Count individuals in each category
+    bp_counts = df['BP Category'].value_counts().reset_index()
+    bp_counts.columns = ['BP Category', 'Count']
+    
+    # BP and Sleep Quality relationship
+    bp_sleep = df.groupby('BP Category').agg({
+        'Sleep Duration': 'mean',
+        'Quality of Sleep': 'mean',
+        'Sleep Disorder': lambda x: (x != 'None').mean() * 100
+    }).reset_index()
+    
+    bp_sleep.columns = ['BP Category', 'Avg. Sleep Duration', 'Avg. Sleep Quality', 'Disorder Prevalence (%)']
+    
+    # Ensure order makes sense
+    bp_order = ['Normal', 'Elevated', 'Hypertensive']
+    bp_sleep['BP Category'] = pd.Categorical(bp_sleep['BP Category'], categories=bp_order, ordered=True)
+    bp_sleep = bp_sleep.sort_values('BP Category')
+    
+    # Column layout for BP analysis
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        # Distribution of BP categories
+        colors = {'Normal': tertiary_color, 'Elevated': secondary_color, 'Hypertensive': warning_color}
+        fig = px.pie(
+            bp_counts,
+            values='Count',
+            names='BP Category',
+            title="Blood Pressure Category Distribution",
+            color='BP Category',
+            color_discrete_map=colors,
+            hole=0.4
+        )
+        
+        fig.update_traces(textposition='inside', textinfo='percent+label')
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=50, b=10)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col2:
+        # BP and sleep metrics relationship
+        fig = px.bar(
+            bp_sleep,
+            x='BP Category',
+            y=['Avg. Sleep Duration', 'Avg. Sleep Quality', 'Disorder Prevalence (%)'],
+            barmode='group',
+            title="Blood Pressure Category vs Sleep Metrics",
+            color_discrete_sequence=[primary_color, secondary_color, warning_color]
+        )
+        
+        fig.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=50, b=10),
+            legend=dict(orientation='h', yanchor='bottom', y=-0.3)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Final section - Intervention recommendation based on data
+    st.markdown("### Recommendations for Improving Sleep Health")
+    
+    # Create two columns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        #### Lifestyle Interventions
+        
+        Based on the data analysis, these factors show the strongest association with improved sleep:
+        
+        1. **Physical Activity**: Aim for 60-90 minutes of daily physical activity
+        2. **Stress Management**: Keep stress levels below 4/10 for optimal sleep quality
+        3. **Weight Management**: Maintain a BMI in the normal range
+        4. **Consistent Sleep Schedule**: Those with better sleep quality have more consistent patterns
+        """)
+        
+    with col2:
+        st.markdown("""
+        #### Monitoring Recommendations
+        
+        For individuals with sleep issues, monitor these key metrics:
+        
+        1. **Blood Pressure**: Higher BP correlates with sleep disorders
+        2. **Stress Levels**: Track daily stress using a 1-10 scale
+        3. **Physical Activity**: Use a step counter to ensure sufficient daily movement
+        4. **Sleep Duration**: Use sleep tracking to ensure 7-9 hours per night
+        """)
+    
